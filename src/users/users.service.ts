@@ -1,73 +1,93 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { FindAllParamsUser, UserDto } from './user.dto';
 import { v4 as uuid } from 'uuid';
 import { hashSync } from 'bcrypt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserEntity } from 'src/db/entities/user.entity';
+import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
+    constructor(@InjectRepository(UserEntity) private readonly userRepository: Repository<UserEntity>){} // Injeção de dependência do repositório de usuários
 
-    private users: UserDto[] = []
+    async create(user: UserDto){
+        const userExists = await this.findByEmail(user.email)
 
-    create(user: UserDto){
+        if(userExists){
+            throw new ConflictException(`User ${user.email} already exists`)
+        }
+
         user.id = uuid()
         user.senha = hashSync(user.senha, 10)
     
-        this.users.push(user)
+        const newUser = this.userRepository.create(user)
+        await this.userRepository.save(newUser)
+
+        return {id: newUser.id, email: newUser.email}
     }
 
-    findUser(id: string): UserDto{
-        const foundUser = this.users.filter(user => user.id === id)
+    async findUser(id: string): Promise<UserDto>{
+        const foundUser = await this.userRepository.findOne({where: {id}})
 
-        if(foundUser.length >= 0){
-            return foundUser[0]
+        if(!foundUser){
+            throw new NotFoundException(`User with ID ${id} not found`);
         }
 
-        throw new HttpException(`User with id ${id} not found`, HttpStatus.NOT_FOUND)
+        return foundUser
     }
 
-    findAll(paramsConsulta: FindAllParamsUser): UserDto[]{
-        return this.users.filter(user => {
-            if(paramsConsulta.id && !user.id.includes(paramsConsulta.id)){
-                return false
-            }
+    async findByEmail(email: string): Promise<UserDto> {
+        const foundUser = this.userRepository.findOne({where: {email}})
 
-            if(paramsConsulta.nome && !user.nome.includes(paramsConsulta.nome)){
-                return false
-            }
-
-            if(paramsConsulta.cpf && !user.cpf.includes(paramsConsulta.cpf)){
-                return false
-            }
-
-            return true
-        })
-    }
-
-    findByEmail(email: string): UserDto | null {
-        return this.users.find(user => user.email === email)
-
-    }
-
-    update(user: UserDto){
-        const userIndex = this.users.findIndex(u => u.id === user.id)
-
-        if(userIndex >= 0){
-            this.users[userIndex] = user
-            return
+        if(!foundUser){
+            throw new NotFoundException(`User with email ${email} not found`)
         }
 
-        throw new HttpException(`User with id ${user.id} not found`, HttpStatus.NOT_FOUND)
+        return foundUser
+
     }
 
-    delete(userId: string){
-        const userIndex = this.users.findIndex(u => u.id === userId)
 
-        if(userIndex >= 0){
-            this.users.slice(userIndex, 1)
-            return
+    async findAll(paramsConsulta: FindAllParamsUser): Promise<UserDto[]>{
+        const searchParams: FindOptionsWhere<UserEntity> = {}
+        
+        if(paramsConsulta.nome){
+            searchParams.nome = ILike(`%${paramsConsulta.nome}%`)
         }
 
-        throw new HttpException(`User with id ${userId} not found`, HttpStatus.NOT_FOUND)
+        if(paramsConsulta.cpf){
+            searchParams.cpf = ILike(`%${paramsConsulta.cpf}%`)
+        }
+
+        const usersFound = await this.userRepository.find({where: searchParams})
+
+        return usersFound
     }
+
+    
+
+    async update(id: string, user: UserDto){
+        const foundUser = await this.userRepository.findOne({where: {id}})
+
+        if(!foundUser){
+            throw new NotFoundException(`User with id ${id} not found`)
+        }
+
+        await this.userRepository.update(id, user)
+
+    }
+
+    async delete(id: string){
+        const foundUser = await this.userRepository.findOne({where: {id}})
+
+        if(!foundUser){
+            throw new NotFoundException(`User with id ${id} not found`)
+        }
+
+        await this.userRepository.delete(id)
+
+    }
+
+    
 
 }

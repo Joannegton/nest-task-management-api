@@ -17,8 +17,8 @@ export class AuthService {
         this.jwtExpires = +this.configService.get<number>('JWT_EXPIRATION') // + converte o valor para number
     }
 
-    login(email: string, senha: string): AuthResponseDto{
-        const foundUser = this.usersService.findByEmail(email)
+    async login(email: string, senha: string): Promise<AuthResponseDto>{
+        const foundUser = await this.usersService.findByEmail(email)
 
         if(!foundUser || !compareSync(senha, foundUser.senha)){
             throw new UnauthorizedException()

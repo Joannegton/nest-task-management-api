@@ -8,7 +8,7 @@ export class AuthController {
 
     @Post('/login')
     @HttpCode(HttpStatus.OK)
-    login(@Body('email') email: string, @Body('senha') senha: string): AuthResponseDto{
-        return this.authService.login(email, senha)
+    async login(@Body('email') email: string, @Body('senha') senha: string): Promise<AuthResponseDto>{
+        return await this.authService.login(email, senha)
     }
 }

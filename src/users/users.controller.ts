@@ -9,23 +9,25 @@ export class UsersController {
     constructor(private readonly usersService: UsersService){}
 
     @Post()
-    create(@Body() user: UserDto){
-        this.usersService.create(user)
+    async create(@Body() user: UserDto){
+        return await this.usersService.create(user)
+        
     }
     
     @Get('/:id')
-    findUser(@Param('id') id: string): UserDto{
-        return this.usersService.findUser(id)
+    async findUser(@Param('id') id: string): Promise<UserDto>{
+        return await this.usersService.findUser(id)
     }
 
     @Get()
-    findAll(@Query() paramsConsulta: FindAllParamsUser): UserDto[]{
-        return this.usersService.findAll(paramsConsulta)
+    async findAll(@Query() paramsConsulta: FindAllParamsUser): Promise<UserDto[]>{
+        return await this.usersService.findAll(paramsConsulta)
     }
 
-    @Put()
-    update(@Body() user: UserDto){
-        this.usersService.update(user)
+
+    @Put('/:id')
+    async update(@Param('id') id: string, @Body() user: UserDto){
+        await this.usersService.update(id, user)
     }
 
     @HttpCode(204)
